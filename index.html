@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网页版飞机大战</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <!-- 主菜单 -->
+        <div id="main-menu" class="menu">
+            <h1>飞机大战</h1>
+            <button id="start-btn" class="btn">开始游戏</button>
+            <div class="instructions">
+                <h3>游戏说明</h3>
+                <p>使用 WASD 键控制飞机移动</p>
+                <p>飞机自动射击，消灭所有敌人</p>
+                <p>收集奖励可以获得不同类型的子弹</p>
+            </div>
+        </div>
+
+        <!-- 游戏界面 -->
+        <div id="game-screen" class="screen hidden">
+            <div class="game-ui">
+                <div class="score">分数: <span id="score">0</span></div>
+                <div class="lives">生命值: <span id="lives">3</span></div>
+                <div class="bullet-type">子弹类型: <span id="bullet-type">基础</span></div>
+            </div>
+            <canvas id="game-canvas" width="800" height="600"></canvas>
+        </div>
+
+        <!-- 游戏结束界面 -->
+        <div id="game-over" class="menu hidden">
+            <h2>游戏结束</h2>
+            <div class="final-score">最终分数: <span id="final-score">0</span></div>
+            <button id="restart-btn" class="btn">重新开始</button>
+            <button id="menu-btn" class="btn">返回主菜单</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

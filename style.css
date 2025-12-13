@@ -1,0 +1,192 @@
+/* 全局样式 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #0a192f, #172a45);
+    color: #ffffff;
+    overflow: hidden;
+}
+
+/* 游戏容器 */
+.game-container {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+/* 菜单样式 */
+.menu {
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 10px;
+    padding: 40px;
+    text-align: center;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+    border: 2px solid #00ffff;
+    max-width: 500px;
+    width: 90%;
+}
+
+.menu h1 {
+    font-size: 3rem;
+    margin-bottom: 30px;
+    color: #00ffff;
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+}
+
+.menu h2 {
+    font-size: 2.5rem;
+    margin-bottom: 20px;
+    color: #ff4444;
+    text-shadow: 0 0 10px rgba(255, 68, 68, 0.8);
+}
+
+/* 按钮样式 */
+.btn {
+    background: linear-gradient(45deg, #00ffff, #0088cc);
+    color: #000;
+    border: none;
+    padding: 15px 30px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 10px;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.btn:hover {
+    background: linear-gradient(45deg, #0088cc, #00ffff);
+    transform: scale(1.05);
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.8);
+}
+
+/* 游戏说明 */
+.instructions {
+    margin-top: 30px;
+    text-align: left;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 20px;
+    border-radius: 5px;
+}
+
+.instructions h3 {
+    margin-bottom: 15px;
+    color: #00ffff;
+}
+
+.instructions p {
+    margin-bottom: 10px;
+    line-height: 1.5;
+}
+
+/* 屏幕样式 */
+.screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 隐藏样式 */
+.hidden {
+    display: none !important;
+}
+
+/* 游戏界面 */
+#game-screen {
+    background: linear-gradient(180deg, #0a192f, #172a45);
+}
+
+/* 游戏画布 */
+#game-canvas {
+    border: 2px solid #00ffff;
+    border-radius: 5px;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+    background: #000;
+}
+
+/* 游戏UI */
+.game-ui {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px 20px;
+    border-radius: 5px;
+    border: 1px solid #00ffff;
+}
+
+.game-ui div {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+.score {
+    color: #00ff00;
+}
+
+.lives {
+    color: #ff4444;
+}
+
+.bullet-type {
+    color: #00ffff;
+}
+
+/* 最终分数 */
+.final-score {
+    font-size: 1.5rem;
+    margin: 20px 0;
+    color: #00ff00;
+}
+
+/* 响应式设计 */
+@media (max-width: 850px) {
+    #game-canvas {
+        width: 90vw;
+        height: auto;
+    }
+    
+    .menu h1 {
+        font-size: 2rem;
+    }
+    
+    .menu h2 {
+        font-size: 1.8rem;
+    }
+    
+    .btn {
+        padding: 12px 24px;
+        font-size: 1rem;
+    }
+    
+    .game-ui {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .game-ui div {
+        font-size: 1rem;
+    }
+}
