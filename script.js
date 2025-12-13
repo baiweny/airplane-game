@@ -207,17 +207,17 @@ function update() {
 
 // 更新玩家
 function updatePlayer() {
-    // 移动玩家
-    if (gameState.keys['w'] && player.y > 0) {
+    // 移动玩家 - 同时支持WASD和上下左右键
+    if ((gameState.keys['w'] || gameState.keys['arrowup'] || gameState.keys['up']) && player.y > 0) {
         player.y -= PLAYER_SPEED;
     }
-    if (gameState.keys['s'] && player.y < CANVAS_HEIGHT - player.height) {
+    if ((gameState.keys['s'] || gameState.keys['arrowdown'] || gameState.keys['down']) && player.y < CANVAS_HEIGHT - player.height) {
         player.y += PLAYER_SPEED;
     }
-    if (gameState.keys['a'] && player.x > 0) {
+    if ((gameState.keys['a'] || gameState.keys['arrowleft'] || gameState.keys['left']) && player.x > 0) {
         player.x -= PLAYER_SPEED;
     }
-    if (gameState.keys['d'] && player.x < CANVAS_WIDTH - player.width) {
+    if ((gameState.keys['d'] || gameState.keys['arrowright'] || gameState.keys['right']) && player.x < CANVAS_WIDTH - player.width) {
         player.x += PLAYER_SPEED;
     }
     
