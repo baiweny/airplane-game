@@ -35,7 +35,8 @@ let gameState = {
     isRunning: false,
     lastEnemySpawn: 0,
     entities: [],
-    keys: {}
+    keys: {},
+    stars: [] // 星空背景
 };
 
 // 游戏对象
@@ -55,11 +56,52 @@ const livesElement = document.getElementById('lives');
 const bulletTypeElement = document.getElementById('bullet-type');
 const finalScoreElement = document.getElementById('final-score');
 
+// 初始化星空背景
+function initStars() {
+    gameState.stars = [];
+    for (let i = 0; i < 100; i++) {
+        gameState.stars.push({
+            x: Math.random() * CANVAS_WIDTH,
+            y: Math.random() * CANVAS_HEIGHT,
+            size: Math.random() * 2 + 1,
+            speed: Math.random() * 0.5 + 0.1,
+            opacity: Math.random() * 0.8 + 0.2
+        });
+    }
+}
+
+// 更新星空背景
+function updateStars() {
+    for (let star of gameState.stars) {
+        star.y += star.speed;
+        if (star.y > CANVAS_HEIGHT) {
+            star.y = 0;
+            star.x = Math.random() * CANVAS_WIDTH;
+        }
+        // 星星闪烁效果
+        star.opacity += (Math.random() - 0.5) * 0.02;
+        star.opacity = Math.max(0.2, Math.min(1, star.opacity));
+    }
+}
+
+// 渲染星空背景
+function renderStars() {
+    for (let star of gameState.stars) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity})`;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
 // 初始化游戏
 function init() {
     // 初始化画布
     canvas = document.getElementById('game-canvas');
     ctx = canvas.getContext('2d');
+    
+    // 初始化星空背景
+    initStars();
     
     // 初始化事件监听
     initEventListeners();
@@ -166,8 +208,18 @@ function gameLoop() {
     if (!gameState.isRunning) return;
     
     // 清空画布
-    ctx.fillStyle = '#000';
+    const bgGradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
+    bgGradient.addColorStop(0, '#0a192f');
+    bgGradient.addColorStop(0.5, '#172a45');
+    bgGradient.addColorStop(1, '#0a192f');
+    ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    
+    // 渲染星空背景
+    renderStars();
+    
+    // 更新星空
+    updateStars();
     
     // 更新游戏状态
     update();
@@ -395,18 +447,65 @@ class Player extends Entity {
     }
     
     render(ctx) {
-        // 绘制玩家飞机（蓝色）
-        ctx.fillStyle = '#00ffff';
+        ctx.save();
+        
+        // 绘制飞机主体 - 三角形机身
+        const gradient = ctx.createLinearGradient(this.x, this.y, this.x + this.width, this.y + this.height);
+        gradient.addColorStop(0, '#0044cc');
+        gradient.addColorStop(0.5, '#00ffff');
+        gradient.addColorStop(1, '#0044cc');
+        
+        ctx.fillStyle = gradient;
         ctx.beginPath();
         ctx.moveTo(this.x + this.width / 2, this.y);
-        ctx.lineTo(this.x, this.y + this.height);
-        ctx.lineTo(this.x + this.width, this.y + this.height);
+        ctx.lineTo(this.x, this.y + this.height * 0.7);
+        ctx.lineTo(this.x + 10, this.y + this.height * 0.7);
+        ctx.lineTo(this.x + 15, this.y + this.height);
+        ctx.lineTo(this.x + this.width - 15, this.y + this.height);
+        ctx.lineTo(this.x + this.width - 10, this.y + this.height * 0.7);
+        ctx.lineTo(this.x + this.width, this.y + this.height * 0.7);
         ctx.closePath();
         ctx.fill();
         
-        // 绘制飞机细节
+        // 绘制边框
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // 绘制驾驶舱
+        ctx.fillStyle = '#ffff00';
+        ctx.beginPath();
+        ctx.arc(this.x + this.width / 2, this.y + this.height * 0.3, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+        
+        // 绘制引擎火焰
+        const flameGradient = ctx.createLinearGradient(this.x + 15, this.y + this.height, this.x + 15, this.y + this.height + 20);
+        flameGradient.addColorStop(0, '#ffffff');
+        flameGradient.addColorStop(0.5, '#ff8800');
+        flameGradient.addColorStop(1, '#ff0000');
+        
+        ctx.fillStyle = flameGradient;
+        ctx.beginPath();
+        ctx.moveTo(this.x + 15, this.y + this.height);
+        ctx.lineTo(this.x + 10, this.y + this.height + 20);
+        ctx.lineTo(this.x + 20, this.y + this.height + 20);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.moveTo(this.x + this.width - 15, this.y + this.height);
+        ctx.lineTo(this.x + this.width - 20, this.y + this.height + 20);
+        ctx.lineTo(this.x + this.width - 10, this.y + this.height + 20);
+        ctx.closePath();
+        ctx.fill();
+        
+        // 绘制机翼装饰
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(this.x + this.width / 2 - 5, this.y + 10, 10, 20);
+        ctx.fillRect(this.x + this.width / 2 - 2, this.y + this.height * 0.5, 4, 15);
+        
+        ctx.restore();
     }
 }
 
@@ -480,18 +579,115 @@ class Bullet extends Entity {
     }
     
     render(ctx) {
-        ctx.fillStyle = this.color;
+        ctx.save();
         
-        if (this.bulletType === BULLET_TYPES.LASER) {
-            // 绘制激光效果
-            ctx.fillRect(this.x, this.y, this.width, this.height);
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(this.x, this.y, this.width, this.height);
-        } else {
-            // 绘制普通子弹
-            ctx.fillRect(this.x, this.y, this.width, this.height);
+        switch(this.bulletType) {
+            case BULLET_TYPES.BASE:
+                // 基础子弹 - 带发光效果的子弹
+                const baseGradient = ctx.createRadialGradient(
+                    this.x + this.width / 2, this.y + this.height / 2, 0,
+                    this.x + this.width / 2, this.y + this.height / 2, this.width / 2
+                );
+                baseGradient.addColorStop(0, '#ffffff');
+                baseGradient.addColorStop(0.5, this.color);
+                baseGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                
+                ctx.fillStyle = baseGradient;
+                ctx.beginPath();
+                ctx.arc(this.x + this.width / 2, this.y + this.height / 2, this.width / 2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 绘制子弹轨迹
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.fillRect(this.x + this.width / 2 - 1, this.y + this.height, 2, 10);
+                break;
+                
+            case BULLET_TYPES.SHOTGUN:
+                // 散弹 - 带火花效果的子弹
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x + this.width / 2, this.y + this.height / 2, this.width / 2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 绘制火花
+                ctx.fillStyle = '#ffff00';
+                for (let i = 0; i < 4; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const sparkLength = Math.random() * 5 + 3;
+                    const x1 = this.x + this.width / 2 + Math.cos(angle) * this.width / 2;
+                    const y1 = this.y + this.height / 2 + Math.sin(angle) * this.height / 2;
+                    const x2 = x1 + Math.cos(angle) * sparkLength;
+                    const y2 = y1 + Math.sin(angle) * sparkLength;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                }
+                break;
+                
+            case BULLET_TYPES.HOMING:
+                // 跟踪弹 - 带旋转轨迹的子弹
+                // 绘制旋转光环
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 1;
+                for (let i = 0; i < 3; i++) {
+                    ctx.beginPath();
+                    ctx.arc(
+                        this.x + this.width / 2,
+                        this.y + this.height / 2,
+                        this.width / 2 + i * 3,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.stroke();
+                }
+                
+                // 绘制中心核心
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(this.x + this.width / 2, this.y + this.height / 2, this.width / 4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 绘制跟踪箭头
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(this.x + this.width / 2, this.y);
+                ctx.lineTo(this.x, this.y + this.height);
+                ctx.moveTo(this.x + this.width / 2, this.y);
+                ctx.lineTo(this.x + this.width, this.y + this.height);
+                ctx.stroke();
+                break;
+                
+            case BULLET_TYPES.LASER:
+                // 激光 - 带能量波动效果的激光束
+                const laserGradient = ctx.createLinearGradient(this.x, this.y, this.x + this.width, this.y + this.height);
+                laserGradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+                laserGradient.addColorStop(0.45, this.color);
+                laserGradient.addColorStop(0.5, '#ffffff');
+                laserGradient.addColorStop(0.55, this.color);
+                laserGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                
+                ctx.fillStyle = laserGradient;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                
+                // 绘制能量波动
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(this.x, this.y, this.width, this.height);
+                
+                // 绘制激光粒子效果
+                ctx.fillStyle = '#ffffff';
+                for (let i = 0; i < 5; i++) {
+                    const particleY = this.y + Math.random() * this.height;
+                    ctx.fillRect(this.x - 3, particleY, 3, 2);
+                    ctx.fillRect(this.x + this.width, particleY, 3, 2);
+                }
+                break;
         }
+        
+        ctx.restore();
     }
 }
 
@@ -565,23 +761,149 @@ class Enemy extends Entity {
     }
     
     render(ctx) {
-        // 绘制怪物主体
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(this.x + this.width / 2, this.y + this.height / 2, this.width / 2, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.save();
         
-        // 绘制怪物细节
-        ctx.fillStyle = '#000000';
-        ctx.beginPath();
-        ctx.arc(this.x + this.width / 3, this.y + this.height / 3, this.width / 8, 0, Math.PI * 2);
-        ctx.arc(this.x + this.width * 2 / 3, this.y + this.height / 3, this.width / 8, 0, Math.PI * 2);
-        ctx.fill();
+        const centerX = this.x + this.width / 2;
+        const centerY = this.y + this.height / 2;
+        
+        switch(this.enemyType) {
+            case ENEMY_TYPES.SMALL:
+                // 小型敌人 - 菱形
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.moveTo(centerX, this.y);
+                ctx.lineTo(this.x + this.width, centerY);
+                ctx.lineTo(centerX, this.y + this.height);
+                ctx.lineTo(this.x, centerY);
+                ctx.closePath();
+                ctx.fill();
+                
+                // 绘制眼睛
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(centerX - 5, centerY - 5, 3, 0, Math.PI * 2);
+                ctx.arc(centerX + 5, centerY - 5, 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#000000';
+                ctx.beginPath();
+                ctx.arc(centerX - 5, centerY - 5, 1, 0, Math.PI * 2);
+                ctx.arc(centerX + 5, centerY - 5, 1, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 绘制尖刺
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1;
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2;
+                    const x1 = centerX + Math.cos(angle) * (this.width / 2);
+                    const y1 = centerY + Math.sin(angle) * (this.height / 2);
+                    const x2 = centerX + Math.cos(angle) * (this.width / 2 + 5);
+                    const y2 = centerY + Math.sin(angle) * (this.height / 2 + 5);
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                }
+                break;
+                
+            case ENEMY_TYPES.MEDIUM:
+                // 中型敌人 - 六边形飞船
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                for (let i = 0; i < 6; i++) {
+                    const angle = (i / 6) * Math.PI * 2 - Math.PI / 6;
+                    const x = centerX + Math.cos(angle) * (this.width / 2);
+                    const y = centerY + Math.sin(angle) * (this.height / 2);
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.closePath();
+                ctx.fill();
+                
+                // 绘制驾驶舱
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // 绘制武器炮管
+                ctx.fillStyle = '#333333';
+                ctx.fillRect(centerX - 3, this.y - 10, 6, 10);
+                ctx.fillRect(centerX - 15, centerY - 3, 10, 6);
+                ctx.fillRect(centerX + 5, centerY - 3, 10, 6);
+                break;
+                
+            case ENEMY_TYPES.LARGE:
+                // 大型敌人 - 带翅膀的飞船
+                // 绘制主体
+                const gradient = ctx.createLinearGradient(this.x, this.y, this.x + this.width, this.y + this.height);
+                gradient.addColorStop(0, '#660000');
+                gradient.addColorStop(0.5, this.color);
+                gradient.addColorStop(1, '#660000');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.moveTo(centerX, this.y);
+                ctx.lineTo(this.x, centerY);
+                ctx.lineTo(this.x + 10, this.y + this.height);
+                ctx.lineTo(this.x + this.width - 10, this.y + this.height);
+                ctx.lineTo(this.x + this.width, centerY);
+                ctx.closePath();
+                ctx.fill();
+                
+                // 绘制边框
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // 绘制翅膀
+                ctx.fillStyle = '#880000';
+                ctx.beginPath();
+                ctx.moveTo(this.x + 10, centerY - 10);
+                ctx.lineTo(this.x - 20, centerY - 30);
+                ctx.lineTo(this.x + 10, centerY - 20);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(this.x + this.width - 10, centerY - 10);
+                ctx.lineTo(this.x + this.width + 20, centerY - 30);
+                ctx.lineTo(this.x + this.width - 10, centerY - 20);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                // 绘制多个眼睛
+                ctx.fillStyle = '#ffffff';
+                for (let i = 0; i < 5; i++) {
+                    const eyeX = this.x + 15 + i * 10;
+                    ctx.beginPath();
+                    ctx.arc(eyeX, centerY, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#000000';
+                    ctx.beginPath();
+                    ctx.arc(eyeX, centerY, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#ffffff';
+                }
+                break;
+        }
         
         // 绘制生命值
         ctx.fillStyle = '#ffffff';
         ctx.font = '12px Arial';
-        ctx.fillText(this.health, this.x + this.width / 2 - 5, this.y + this.height / 2 + 4);
+        ctx.textAlign = 'center';
+        ctx.fillText(this.health, centerX, this.y + this.height + 15);
+        
+        ctx.restore();
     }
     
     dropPowerUp() {
@@ -634,21 +956,106 @@ class PowerUp extends Entity {
         ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
         ctx.rotate(this.rotation);
         
+        // 绘制旋转光环
+        const光环Radius = this.width / 2 + 5;
+        const光环Gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 光环Radius);
+        光环Gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+        光环Gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.5)');
+        光环Gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        
+        ctx.fillStyle = 光环Gradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, 光环Radius, 0, Math.PI * 2);
+        ctx.fill();
+        
         // 绘制奖励主体
         ctx.fillStyle = this.color;
-        ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
-        
-        // 绘制边框
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
-        ctx.strokeRect(-this.width / 2, -this.height / 2, this.width, this.height);
         
-        // 绘制文字
-        ctx.fillStyle = '#000000';
-        ctx.font = '16px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(this.text, 0, 0);
+        switch(this.powerUpType) {
+            case POWER_UP_TYPES.SHOTGUN:
+                // 散弹奖励 - 扩散效果图标
+                ctx.beginPath();
+                ctx.moveTo(0, -this.height / 3);
+                ctx.lineTo(-this.width / 3, this.height / 3);
+                ctx.lineTo(0, this.height / 4);
+                ctx.lineTo(this.width / 3, this.height / 3);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                // 绘制散弹扩散线条
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1;
+                for (let i = -2; i <= 2; i++) {
+                    const angle = i * 0.2;
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(Math.sin(angle) * this.width / 2, Math.cos(angle) * this.height / 2);
+                    ctx.stroke();
+                }
+                break;
+                
+            case POWER_UP_TYPES.HOMING:
+                // 跟踪弹奖励 - 目标追踪图标
+                // 绘制目标圆圈
+                ctx.beginPath();
+                ctx.arc(0, 0, this.width / 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                // 绘制十字线
+                ctx.beginPath();
+                ctx.moveTo(-this.width / 3, 0);
+                ctx.lineTo(this.width / 3, 0);
+                ctx.moveTo(0, -this.height / 3);
+                ctx.lineTo(0, this.height / 3);
+                ctx.stroke();
+                
+                // 绘制追踪箭头
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.moveTo(0, -this.height / 2);
+                ctx.lineTo(-this.width / 5, 0);
+                ctx.lineTo(0, -this.height / 5);
+                ctx.lineTo(this.width / 5, 0);
+                ctx.closePath();
+                ctx.fill();
+                break;
+                
+            case POWER_UP_TYPES.LASER:
+                // 激光奖励 - 光束效果图标
+                // 绘制激光束
+                const laserWidth = this.width / 4;
+                const laserHeight = this.height / 2;
+                
+                const laserGradient = ctx.createLinearGradient(-laserWidth, -laserHeight, laserWidth, laserHeight);
+                laserGradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+                laserGradient.addColorStop(0.45, this.color);
+                laserGradient.addColorStop(0.5, '#ffffff');
+                laserGradient.addColorStop(0.55, this.color);
+                laserGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                
+                ctx.fillStyle = laserGradient;
+                ctx.fillRect(-laserWidth, -laserHeight, laserWidth * 2, laserHeight * 2);
+                ctx.strokeStyle = '#ffffff';
+                ctx.strokeRect(-laserWidth, -laserHeight, laserWidth * 2, laserHeight * 2);
+                
+                // 绘制激光波纹
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.lineWidth = 1;
+                for (let i = 0; i < 3; i++) {
+                    const offset = i * 5;
+                    ctx.beginPath();
+                    ctx.moveTo(-laserWidth - offset, -laserHeight + offset);
+                    ctx.lineTo(laserWidth + offset, -laserHeight + offset);
+                    ctx.moveTo(-laserWidth - offset, laserHeight - offset);
+                    ctx.lineTo(laserWidth + offset, laserHeight - offset);
+                    ctx.stroke();
+                }
+                break;
+        }
         
         ctx.restore();
     }
