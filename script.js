@@ -17,7 +17,10 @@ const BULLET_TYPES = {
 const ENEMY_TYPES = {
     SMALL: 'small',
     MEDIUM: 'medium',
-    LARGE: 'large'
+    LARGE: 'large',
+    FAST: 'fast', // 快速怪
+    ELITE: 'elite', // 精英怪
+    BOSS: 'boss' // BOSS类型
 };
 
 // 奖励类型
@@ -36,7 +39,11 @@ let gameState = {
     lastEnemySpawn: 0,
     entities: [],
     keys: {},
-    stars: [] // 星空背景
+    stars: [], // 星空背景
+    boss: null, // 当前BOSS
+    bossSpawned: false, // 是否已经生成过BOSS
+    bossThreshold: 1000, // BOSS战触发分数阈值
+    currentBossWave: 0 // 当前BOSS波数
 };
 
 // 游戏对象
@@ -162,6 +169,10 @@ function resetGame() {
     gameState.bulletType = BULLET_TYPES.BASE;
     gameState.entities = [];
     gameState.lastEnemySpawn = 0;
+    gameState.boss = null; // 重置BOSS
+    gameState.bossSpawned = false; // 重置BOSS生成状态
+    gameState.bossThreshold = 1000; // 重置BOSS触发阈值
+    gameState.currentBossWave = 0; // 重置BOSS波数
     updateUI();
 }
 
@@ -245,7 +256,8 @@ function update() {
         entity.update();
         
         // 移除超出屏幕或已销毁的实体
-        if (entity.y < -100 || entity.y > CANVAS_HEIGHT + 100 || entity.x < -100 || entity.x > CANVAS_WIDTH + 100 || entity.health <= 0) {
+        if (entity.y > CANVAS_HEIGHT + 100 || entity.x < -100 || entity.x > CANVAS_WIDTH + 100 || entity.health <= 0) {
+            // 只移除屏幕底部之外的实体，不移除顶部进入的实体
             gameState.entities.splice(i, 1);
         }
     }
@@ -283,21 +295,67 @@ function updatePlayer() {
 
 // 生成怪物
 function spawnEnemies() {
+    // 如果已经有BOSS存在，停止生成普通怪物
+    if (gameState.boss && gameState.boss.health > 0) {
+        return;
+    }
+    
     const now = Date.now();
     if (now - gameState.lastEnemySpawn > ENEMY_SPAWN_RATE) {
-        // 随机选择怪物类型
-        const enemyTypes = [ENEMY_TYPES.SMALL, ENEMY_TYPES.MEDIUM, ENEMY_TYPES.LARGE];
-        const enemyType = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
+        // 随机选择怪物类型，根据概率生成不同类型的怪物
+        let enemyType;
+        const random = Math.random();
+        
+        if (random < 0.4) {
+            // 40% 生成小型怪
+            enemyType = ENEMY_TYPES.SMALL;
+        } else if (random < 0.7) {
+            // 30% 生成中型怪
+            enemyType = ENEMY_TYPES.MEDIUM;
+        } else if (random < 0.85) {
+            // 15% 生成大型怪
+            enemyType = ENEMY_TYPES.LARGE;
+        } else if (random < 0.95) {
+            // 10% 生成快速怪
+            enemyType = ENEMY_TYPES.FAST;
+        } else {
+            // 5% 生成精英怪
+            enemyType = ENEMY_TYPES.ELITE;
+        }
         
         // 随机生成位置
-        const x = Math.random() * (CANVAS_WIDTH - 50);
+        const x = Math.random() * (CANVAS_WIDTH - 70);
         
         // 创建怪物
-        const enemy = new Enemy(x, -50, enemyType);
+        const enemy = new Enemy(x, -70, enemyType);
         gameState.entities.push(enemy);
         
         gameState.lastEnemySpawn = now;
     }
+    
+    // 检查是否需要生成BOSS
+    checkBossSpawn();
+}
+
+// 检查是否需要生成BOSS
+function checkBossSpawn() {
+    // 当分数达到阈值且没有BOSS时生成BOSS
+    if (gameState.score >= gameState.bossThreshold && !gameState.boss) {
+        spawnBoss();
+    }
+}
+
+// 生成BOSS
+function spawnBoss() {
+    // 创建BOSS，从屏幕顶部可见位置开始出现
+    const boss = new Enemy(CANVAS_WIDTH / 2 - 75, 100, ENEMY_TYPES.BOSS);
+    gameState.entities.push(boss);
+    gameState.boss = boss;
+    gameState.bossSpawned = true;
+    
+    // 提高下一次BOSS战的分数阈值
+    gameState.currentBossWave++;
+    gameState.bossThreshold += 1000;
 }
 
 // 检测碰撞
@@ -320,8 +378,36 @@ function checkCollisions() {
                 
                 // 怪物死亡，生成奖励
                 if (enemy.health <= 0) {
-                    gameState.score += 10;
+                    // 根据怪物类型给予不同分数
+                    let enemyScore = 0;
+                    switch(enemy.enemyType) {
+                        case ENEMY_TYPES.SMALL:
+                            enemyScore = 5; // 小型怪物5分
+                            break;
+                        case ENEMY_TYPES.MEDIUM:
+                            enemyScore = 15; // 中型怪物15分
+                            break;
+                        case ENEMY_TYPES.LARGE:
+                            enemyScore = 30; // 大型怪物30分
+                            break;
+                        case ENEMY_TYPES.FAST:
+                            enemyScore = 25; // 快速怪25分
+                            break;
+                        case ENEMY_TYPES.ELITE:
+                            enemyScore = 50; // 精英怪50分
+                            break;
+                        case ENEMY_TYPES.BOSS:
+                            enemyScore = 150; // BOSS150分
+                            break;
+                    }
+                    
+                    gameState.score += enemyScore;
                     enemy.dropPowerUp();
+                    
+                    // 如果是BOSS，清除BOSS引用
+                    if (enemy.enemyType === ENEMY_TYPES.BOSS) {
+                        gameState.boss = null;
+                    }
                 }
             }
         }
@@ -364,12 +450,57 @@ function isColliding(entity1, entity2) {
            entity1.y + entity1.height > entity2.y;
 }
 
+// 渲染BOSS血条
+function renderBossHealth() {
+    if (gameState.boss && gameState.boss.health > 0) {
+        const boss = gameState.boss;
+        const healthWidth = 300;
+        const healthHeight = 20;
+        const healthX = (CANVAS_WIDTH - healthWidth) / 2;
+        const healthY = boss.y - 40; // 将血条放在BOSS上方
+        
+        // 绘制血条背景
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(healthX, healthY, healthWidth, healthHeight);
+        
+        // 绘制血条边框
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(healthX, healthY, healthWidth, healthHeight);
+        
+        // 绘制当前血量
+        const currentHealthWidth = (boss.health / boss.maxHealth) * healthWidth;
+        const healthGradient = ctx.createLinearGradient(healthX, healthY, healthX + healthWidth, healthY + healthHeight);
+        healthGradient.addColorStop(0, '#ff0000');
+        healthGradient.addColorStop(0.5, '#ffff00');
+        healthGradient.addColorStop(1, '#00ff00');
+        
+        ctx.fillStyle = healthGradient;
+        ctx.fillRect(healthX, healthY, currentHealthWidth, healthHeight);
+        
+        // 绘制BOSS标签
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('BOSS', CANVAS_WIDTH / 2, healthY - 10);
+        
+        // 绘制血量数值
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${boss.health}/${boss.maxHealth}`, CANVAS_WIDTH / 2, healthY + healthHeight + 20);
+    }
+}
+
 // 渲染游戏
 function render() {
     // 渲染所有实体
     for (let entity of gameState.entities) {
         entity.render(ctx);
     }
+    
+    // 渲染BOSS血条
+    renderBossHealth();
 }
 
 // 实体基类
@@ -522,20 +653,20 @@ class Bullet extends Entity {
         // 根据子弹类型设置属性
         switch(bulletType) {
             case BULLET_TYPES.BASE:
-                this.damage = 1;
+                this.damage = 1; // 基础子弹伤害1
                 this.color = '#ffffff';
                 break;
             case BULLET_TYPES.SHOTGUN:
-                this.damage = 1;
+                this.damage = 2; // 散弹伤害2
                 this.color = '#ffff00';
                 break;
             case BULLET_TYPES.HOMING:
-                this.damage = 2;
+                this.damage = 3; // 跟踪弹伤害3
                 this.color = '#ff00ff';
                 this.speed = 6;
                 break;
             case BULLET_TYPES.LASER:
-                this.damage = 3;
+                this.damage = 2; // 激光伤害2（降低威力）
                 this.color = '#ff0000';
                 this.speed = 10;
                 this.health = 100; // 激光持续时间
@@ -701,37 +832,65 @@ class Enemy extends Entity {
             case ENEMY_TYPES.SMALL:
                 width = 30;
                 height = 30;
-                health = 1;
-                speed = 2;
+                health = 2; // 原1，提升1.5倍
+                speed = 1.3; // 原2，减少1.5倍
                 color = '#00ff00';
                 break;
                 
             case ENEMY_TYPES.MEDIUM:
                 width = 50;
                 height = 50;
-                health = 3;
-                speed = 1.5;
+                health = 5; // 原3，提升1.5倍
+                speed = 1; // 原1.5，减少1.5倍
                 color = '#ffa500';
                 break;
                 
             case ENEMY_TYPES.LARGE:
                 width = 70;
                 height = 70;
-                health = 5;
-                speed = 1;
+                health = 8; // 原5，提升1.5倍
+                speed = 0.7; // 原1，减少1.5倍
                 color = '#ff0000';
+                break;
+                
+            case ENEMY_TYPES.FAST:
+                width = 25;
+                height = 25;
+                health = 2; // 快速怪血量
+                speed = 2.7; // 原4，减少1.5倍
+                color = '#00ffff'; // 青色
+                break;
+                
+            case ENEMY_TYPES.ELITE:
+                width = 60;
+                height = 60;
+                health = 15; // 精英怪高血量
+                speed = 1; // 原1.5，减少1.5倍
+                color = '#ffffff'; // 白色精英怪
+                break;
+                
+            case ENEMY_TYPES.BOSS:
+                width = 150;
+                height = 150;
+                health = 150; // BOSS高血量，增加到150
+                speed = 1; // BOSS移动速度
+                color = '#ff00ff'; // BOSS独特颜色
                 break;
         }
         
         super(x, y, width, height, 'enemy');
         this.enemyType = enemyType;
         this.health = health;
+        this.maxHealth = health; // 最大生命值，用于显示血条
         this.speed = speed;
         this.color = color;
-        this.dropRate = 0.3; // 30%掉落率
-        this.movePattern = Math.random() > 0.5 ? 'straight' : 'zigzag';
+        this.dropRate = enemyType === ENEMY_TYPES.BOSS ? 1.0 : 0.3; // BOSS 100%掉落奖励
+        this.movePattern = enemyType === ENEMY_TYPES.BOSS ? 'boss' : (Math.random() > 0.5 ? 'straight' : 'zigzag');
         this.zigzagDirection = 1;
         this.zigzagTimer = 0;
+        this.bossPhase = 1; // BOSS阶段
+        this.lastBossShot = 0; // BOSS上次射击时间
+        this.bossShotInterval = 1500; // BOSS射击间隔（毫秒）
     }
     
     update() {
@@ -757,6 +916,61 @@ class Enemy extends Entity {
                     this.zigzagDirection *= -1;
                 }
                 break;
+                
+            case 'boss':
+                // BOSS移动模式 - 左右摆动，停留在顶部
+                // 移除下落逻辑，让BOSS停留在顶部
+                this.x += Math.sin(Date.now() * 0.001) * this.speed;
+                
+                // 限制BOSS的Y坐标，使其停留在顶部
+                this.y = Math.min(this.y, 50); // 停留在屏幕顶部下方50像素处
+                
+                // 限制在屏幕内
+                if (this.x < 0) {
+                    this.x = 0;
+                } else if (this.x > CANVAS_WIDTH - this.width) {
+                    this.x = CANVAS_WIDTH - this.width;
+                }
+                break;
+        }
+        
+        // BOSS射击逻辑
+        if (this.enemyType === ENEMY_TYPES.BOSS) {
+            this.bossShoot();
+        }
+    }
+    
+    // BOSS射击方法
+    bossShoot() {
+        const now = Date.now();
+        if (now - this.lastBossShot > this.bossShotInterval) {
+            // 发射多颗子弹，呈扇形分布
+            const bulletCount = 8;
+            for (let i = 0; i < bulletCount; i++) {
+                const angle = (i / bulletCount) * Math.PI * 2;
+                const bulletSpeed = 3;
+                const bulletX = this.x + this.width / 2;
+                const bulletY = this.y + this.height;
+                
+                // 创建BOSS子弹
+                const bossBullet = new Bullet(
+                    bulletX, bulletY, 8, 20, BULLET_TYPES.BASE, angle
+                );
+                // 修改子弹属性
+                bossBullet.damage = 1; // BOSS子弹伤害
+                bossBullet.speed = bulletSpeed;
+                bossBullet.color = '#ff0000';
+                
+                // 设置子弹的移动方向
+                bossBullet.update = function() {
+                    this.x += Math.sin(this.angle) * this.speed;
+                    this.y += Math.cos(this.angle) * this.speed;
+                };
+                
+                gameState.entities.push(bossBullet);
+            }
+            
+            this.lastBossShot = now;
         }
     }
     
@@ -895,6 +1109,133 @@ class Enemy extends Entity {
                     ctx.fillStyle = '#ffffff';
                 }
                 break;
+                
+            case ENEMY_TYPES.FAST:
+                // 快速怪 - 三角形，带尾焰
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.moveTo(centerX, this.y);
+                ctx.lineTo(this.x, this.y + this.height);
+                ctx.lineTo(this.x + this.width, this.y + this.height);
+                ctx.closePath();
+                ctx.fill();
+                
+                // 绘制边框
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                // 绘制尾焰
+                const flameGradient = ctx.createLinearGradient(this.x, this.y + this.height, this.x + this.width, this.y + this.height + 15);
+                flameGradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+                flameGradient.addColorStop(0.5, '#ff8800');
+                flameGradient.addColorStop(1, 'rgba(255, 136, 0, 0)');
+                
+                ctx.fillStyle = flameGradient;
+                ctx.beginPath();
+                ctx.moveTo(this.x + 5, this.y + this.height);
+                ctx.lineTo(centerX, this.y + this.height + 15);
+                ctx.lineTo(this.x + this.width - 5, this.y + this.height);
+                ctx.closePath();
+                ctx.fill();
+                break;
+                
+            case ENEMY_TYPES.ELITE:
+                // 精英怪 - 带光环的六边形
+                // 绘制外层光环
+                const eliteGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, this.width / 2 + 10);
+                eliteGradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+                eliteGradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.5)');
+                eliteGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                
+                ctx.fillStyle = eliteGradient;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, this.width / 2 + 10, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 绘制主体六边形
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                for (let i = 0; i < 6; i++) {
+                    const angle = (i / 6) * Math.PI * 2;
+                    const x = centerX + Math.cos(angle) * (this.width / 2);
+                    const y = centerY + Math.sin(angle) * (this.height / 2);
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.closePath();
+                ctx.fill();
+                
+                // 绘制边框
+                ctx.strokeStyle = '#ffff00';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // 绘制中心核心
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, 10, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+                
+            case ENEMY_TYPES.BOSS:
+                // BOSS - 巨型飞船
+                // 绘制主体
+                const bossGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, this.width / 2);
+                bossGradient.addColorStop(0, '#ffffff');
+                bossGradient.addColorStop(0.3, this.color);
+                bossGradient.addColorStop(0.7, '#660066');
+                bossGradient.addColorStop(1, '#330033');
+                
+                ctx.fillStyle = bossGradient;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, this.width / 2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 绘制边框
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                // 绘制BOSS核心
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, 20, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+                
+                // 绘制BOSS眼睛
+                ctx.fillStyle = '#ff0000';
+                for (let i = 0; i < 4; i++) {
+                    const angle = (i / 4) * Math.PI * 2;
+                    const eyeX = centerX + Math.cos(angle) * 50;
+                    const eyeY = centerY + Math.sin(angle) * 50;
+                    ctx.beginPath();
+                    ctx.arc(eyeX, eyeY, 10, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.stroke();
+                    
+                    // 眼睛瞳孔
+                    ctx.fillStyle = '#000000';
+                    ctx.beginPath();
+                    ctx.arc(eyeX, eyeY, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // 绘制BOSS武器
+                ctx.fillStyle = '#333333';
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2;
+                    const weaponX = centerX + Math.cos(angle) * (this.width / 2 - 10);
+                    const weaponY = centerY + Math.sin(angle) * (this.height / 2 - 10);
+                    ctx.fillRect(weaponX - 5, weaponY - 5, 10, 10);
+                }
+                break;
         }
         
         // 绘制生命值
@@ -957,8 +1298,8 @@ class PowerUp extends Entity {
         ctx.rotate(this.rotation);
         
         // 绘制旋转光环
-        const光环Radius = this.width / 2 + 5;
-        const光环Gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 光环Radius);
+        const 光环Radius = this.width / 2 + 5;
+        const 光环Gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 光环Radius);
         光环Gradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
         光环Gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.5)');
         光环Gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
